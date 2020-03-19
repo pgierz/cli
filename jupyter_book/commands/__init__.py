@@ -33,7 +33,7 @@ def build(path_book, path_output, config, toc, execute):
     CONFIG_FILE = config if config is not None else PATH_BOOK.joinpath("_config.yml")
 
     OUTPUT_PATH = path_output if path_output is not None else PATH_BOOK
-    OUTPUT_PATH = Path(OUTPUT_PATH).joinpath("_build/html")
+    OUTPUT_PATH = Path(OUTPUT_PATH).joinpath("_build/")
 
     # Now call the Sphinx commands to build
     config = {

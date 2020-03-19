@@ -34,8 +34,9 @@ setup(
     install_requires=[
         "pyyaml",
         "docutils>=0.15",
+        "docxbuilder",
         "sphinx",
-        "myst-nb~=0.2.1",
+        "myst-nb",
         "click",
         "setuptools",
         "sphinx",

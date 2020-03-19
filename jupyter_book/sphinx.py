@@ -7,6 +7,7 @@ from sphinx.util.docutils import docutils_namespace, patch_docutils
 from sphinx.application import Sphinx
 from sphinx.cmd.build import handle_exception
 
+#from docxbuilder import setup as docx_setup
 
 REDIRECT_TEXT = """
 <meta http-equiv="Refresh" content="0; url={first_page}" />
@@ -18,6 +19,7 @@ DEFAULT_CONFIG = dict(
     copyright="2020, ExecutableBookProject",
     author="Executable Book Project",
     extensions=[
+        "docxbuilder",
         "sphinx_togglebutton",
         "sphinx_copybutton",
         "myst_parser",
@@ -42,10 +44,9 @@ DEFAULT_CONFIG = dict(
     html_add_permalinks="¶",
 )
 
-
 def build_sphinx(
     sourcedir,
-    outputdir,
+    top_outputdir,
     confdir=None,
     noconfig=False,
     confoverrides=None,
@@ -90,7 +91,7 @@ def build_sphinx(
 
     # Doctrees directory
     if not doctreedir:
-        doctreedir = op.join(outputdir, ".doctrees")
+        doctreedir = op.join(top_outputdir, ".doctrees")
 
     if jobs is None:
         jobs = 1
@@ -129,48 +130,54 @@ def build_sphinx(
     if nitpicky:
         config["nitpicky"] = True
 
-    app = None  # In case we fail, this allows us to handle the exception
-    try:
-        with patch_docutils(confdir), docutils_namespace():
-            app = Sphinx(
-                sourcedir,
-                confdir,
-                outputdir,
-                doctreedir,
-                builder,
-                config,
-                status,
-                warning,
-                freshenv,
-                warningiserror,
-                tags,
-                verbosity,
-                jobs,
-                keep_going,
-            )
-            app.build(force_all, filenames)
+    for builder in ["html", "latex", "docx"]:
+        outputdir = top_outputdir / Path(builder)
+        app = None  # In case we fail, this allows us to handle the exception
+        try:
+            with patch_docutils(confdir), docutils_namespace():
+                app = Sphinx(
+                    sourcedir,
+                    confdir,
+                    outputdir,
+                    doctreedir,
+                    builder,
+                    config,
+                    status,
+                    warning,
+                    freshenv,
+                    warningiserror,
+                    tags,
+                    verbosity,
+                    jobs,
+                    keep_going,
+                )
+                # For external docx builder, we need to add it:
+                #if builder == "docx":
+                #    docx_setup(app)
+                app.build(force_all, filenames)
 
-            # Write an index.html file in the root to redirect to the first page
-            path_index = outputdir.joinpath("index.html")
-            if config["globaltoc_path"]:
-                path_toc = Path(config["globaltoc_path"])
-                if not path_toc.exists():
-                    raise ValueError(
-                        f"You gave a Table of Contents path that doesn't exist: {path_toc}"
-                    )
-                if path_toc.suffix not in [".yml", ".yaml"]:
-                    raise ValueError(
-                        f"You gave a Table of Contents path that is not a YAML file: {path_toc}"
-                    )
-            else:
-                path_toc = None
+                if builder == "html":
+                    # Write an index.html file in the root to redirect to the first page
+                    path_index = outputdir.joinpath("index.html")
+                    if config["globaltoc_path"]:
+                        path_toc = Path(config["globaltoc_path"])
+                        if not path_toc.exists():
+                            raise ValueError(
+                                f"You gave a Table of Contents path that doesn't exist: {path_toc}"
+                            )
+                        if path_toc.suffix not in [".yml", ".yaml"]:
+                            raise ValueError(
+                                f"You gave a Table of Contents path that is not a YAML file: {path_toc}"
+                            )
+                    else:
+                        path_toc = None
 
-            if not path_index.exists() and path_toc:
-                toc = yaml.safe_load(path_toc.read_text())
-                first_page = toc[0]["file"].split(".")[0] + ".html"
-                with open(path_index, "w") as ff:
-                    ff.write(REDIRECT_TEXT.format(first_page=first_page))
-            return app.statuscode
-    except (Exception, KeyboardInterrupt) as exc:
-        handle_exception(app, debug_args, exc, error)
-        return 2
+                    if not path_index.exists() and path_toc:
+                        toc = yaml.safe_load(path_toc.read_text())
+                        first_page = toc[0]["file"].split(".")[0] + ".html"
+                        with open(path_index, "w") as ff:
+                            ff.write(REDIRECT_TEXT.format(first_page=first_page))
+                #return app.statuscode
+        except (Exception, KeyboardInterrupt) as exc:
+            handle_exception(app, debug_args, exc, error)
+            #return 2
